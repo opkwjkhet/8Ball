@@ -1,0 +1,9 @@
+Package: com.dkhoa.8ball
+Name: 8BallESP
+Version: 2.0.0
+Architecture: iphoneos-arm64
+Description: 8 Ball Pool ESP + AutoPlay
+Maintainer: dkhoa
+Author: dkhoa
+Section: Tweaks
+Depends: mobilesubstrate
