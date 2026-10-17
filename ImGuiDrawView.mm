@@ -24,6 +24,9 @@
 // ── ESP system ──
 #include "ESP.h"
 
+// ── UIKit Menu ──
+#import "UIKitMenu.h"
+
 // ── Metal device for ESP (if needed) ──
 id<MTLDevice> g_espMetalDevice = nil;
 
@@ -95,6 +98,7 @@ static void EnableMultiTouchForGameAndImGui(UIView *imguiView) {
 static void gestureFired(id self, SEL _cmd, id sender) {
     dispatch_async(dispatch_get_main_queue(), ^{
         g_menuVisible = !g_menuVisible;
+        [[UIKitMenu shared] toggle];
         NSLog(@"[ESP-AI] Menu toggled: %s", g_menuVisible ? "VISIBLE" : "HIDDEN");
     });
 }
@@ -203,10 +207,11 @@ static void setupGestureAndShowImGui(void) {
         EnableMultiTouchForGameAndImGui(_sharedImGuiDrawView.view);
         setupGestureRecognizer();
 
-        // Show menu after a short delay
+        // Show UIKit menu after a short delay
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3 * NSEC_PER_SEC)),
                        dispatch_get_main_queue(), ^{
             g_menuVisible = true;
+            [[UIKitMenu shared] show];
         });
     });
 }
@@ -429,22 +434,9 @@ static void setupGestureAndShowImGui(void) {
             NSLog(@"[ESP-AI] ESP_Update exception: %@", e);
         }
 
-        // ── Menu window ── (width +50% vs original 340pt for longer debug lines)
-        if (g_menuVisible) {
-            const CGFloat kESPMenuW = 340.f * 1.5f;
-            const CGFloat kESPMenuH = 380.f;
-            CGFloat x = (view.bounds.size.width - kESPMenuW) / 2;
-            CGFloat y = (view.bounds.size.height - kESPMenuH) / 2;
-            ImGui::SetNextWindowPos(ImVec2(x, y), ImGuiCond_FirstUseEver);
-            ImGui::SetNextWindowSize(ImVec2(kESPMenuW, kESPMenuH), ImGuiCond_Always);
-
-            ImGui::Begin(ICON_FA_EYE " 8 Ball Pool Hack", &g_menuVisible,
-                        ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize);
-
-            ESP_DrawMenu();
-
-            ImGui::End();
-        }
+        // ── ImGui menu replaced by UIKitMenu (UIKit) ──
+        // ESP_DrawMenu() is now rendered via UIKitMenu.mm
+        // g_menuVisible still controls hideView touch passthrough
 
         // ── Finalize ──
         ImGui::Render();
