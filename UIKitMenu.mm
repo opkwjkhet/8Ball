@@ -1,14 +1,42 @@
 #import "UIKitMenu.h"
 #import <objc/runtime.h>
 
-// ── Icon fonts (required by ESP.h) ──
+// ── ImGui (for ImGui::GetIO().Framerate only) ──
 #include "ImGui/imgui.h"
-#include "ImGui/Icon.h"
-#include "ImGui/Iconcpp.h"
-#include "ImGui/ico_font.h"
 
-// ── Pull in all ESP vars & AutoPlay/AutoQueue ──
-#include "ESP.h"
+// ── ESP vars extern (defined in ImGuiDrawView.mm via ESP.h) ──
+// Do NOT #include "ESP.h" here — it would cause duplicate symbols at link time.
+extern bool g_espEnabled;
+extern bool g_drawPredictionLine;
+extern bool g_drawPockets;
+extern bool g_drawPocketsShotState;
+extern float g_lineWidth;
+extern float g_tableOffsetX;
+extern float g_tableOffsetY;
+extern float g_tableScaleFactor;
+extern bool g_noScreenShot;
+
+// AutoPlay / AutoQueue — also defined in ESP.h (included by ImGuiDrawView.mm)
+namespace AutoPlay {
+    extern bool bAutoAim;
+    extern bool bAutoPlaying;
+    extern void ClearState();
+}
+namespace AutoQueue {
+    extern bool bAutoQueue;
+}
+
+// Game state helpers — defined in ESP.h
+extern bool isInGame();
+extern bool isPlayerTurn();
+extern bool isNineBallRuntime();
+extern int  getTableBallCount(void *table);
+extern void *GM_Table();
+extern void ESP_SaveSettings();
+
+// Cache struct forward (for g_cache)
+struct ESPCache_t;
+extern ESPCache_t g_cache;
 
 // ════════════════════════════════════════════════════════════════════════════
 // MARK: - Palette
@@ -462,7 +490,6 @@ static UIKitMenu *_shared;
                 [log appendFormat:@"=== 8BP Debug Log ===\n"];
                 [log appendFormat:@"Date: %@\n", [NSDate date]];
                 [log appendFormat:@"InGame: %d  PlayerTurn: %d\n", isInGame(), isPlayerTurn()];
-                [log appendFormat:@"GM_StateID: %d  MM_StateID: %d\n", g_cache.gmStateId, g_cache.mmStateId];
                 [log appendFormat:@"Rule: %s\n", isNineBallRuntime() ? "9-Ball" : "8-Ball"];
                 [log appendFormat:@"Balls: %d\n", getTableBallCount(GM_Table())];
                 NSString *path = [NSSearchPathForDirectoriesInDomains(
