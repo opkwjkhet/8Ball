@@ -1,6 +1,12 @@
 #import "UIKitMenu.h"
 #import <objc/runtime.h>
 
+// ── Icon fonts (required by ESP.h) ──
+#include "ImGui/imgui.h"
+#include "ImGui/Icon.h"
+#include "ImGui/Iconcpp.h"
+#include "ImGui/ico_font.h"
+
 // ── Pull in all ESP vars & AutoPlay/AutoQueue ──
 #include "ESP.h"
 
@@ -447,12 +453,10 @@ static UIKitMenu *_shared;
     [tb addView:_irFPS];
     // Save log button
     [tb addSpacer:8];
-    __weak typeof(self) ws = self;
     [tb addView:[[ActionRow alloc] initWithTitle:@"Save Log to Documents"
         color:[UIColor colorWithRed:0.2 green:0.5 blue:0.9 alpha:1]
         width:kW-kPad*2
         action:^{
-            (void)ws;
             @try {
                 NSMutableString *log = [NSMutableString string];
                 [log appendFormat:@"=== 8BP Debug Log ===\n"];
