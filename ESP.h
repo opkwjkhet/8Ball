@@ -565,7 +565,7 @@ static void updateGameCache(void) {
     } // @autoreleasepool
 }
 
-static ptr GM_Table()        { return readPtr(g_gameManager, g_off.gm_mTable); }
+ptr GM_Table()        { return readPtr(g_gameManager, g_off.gm_mTable); }
 static ptr GM_VisualCue()    { return readPtr(g_gameManager, g_off.gm_mVisualCue); }
 static ptr GM_VEnglish()     { return readPtr(g_gameManager, g_off.gm_mVisualEnglishControl); }
 static ptr GM_StateManager() { return readPtr(g_gameManager, g_off.gm_mStateManager); }
@@ -573,12 +573,12 @@ static ptr GM_Rules()        { return readPtr(g_gameManager, g_off.gm_rules); }
 
 static int32_t getMMStateId() { return g_cache.mmStateId; }
 static int32_t getGMStateId() { return g_cache.gmStateId; }
-static bool isPlayerTurn() { return g_cache.gmStateId == 4; }
-static bool isInGame() {
+bool isPlayerTurn() { return g_cache.gmStateId == 4; }
+bool isInGame() {
     return g_cache.mmStateId == 4 && isValidPtr(g_gameManager) && isValidPtr(GM_Table());
 }
 
-static int getTableBallCount(ptr table);
+int getTableBallCount(ptr table);
 static ptr getTableBall(ptr table, int index);
 static BallEnums::Classification getPlayerClassification();
 static int getPocketNominationMode();
@@ -618,7 +618,7 @@ static bool inferNineBallByBallCount() {
     return objCnt > 0 && objCnt <= 9;
 }
 
-static bool isNineBallRuntime() {
+bool isNineBallRuntime() {
     if (g_cache.is9BallByGameApi) return true;
     BallEnums::Classification cls = getPlayerClassification();
     if (cls == BallEnums::NINE_BALL_RULE) return true;
@@ -1205,7 +1205,7 @@ static bool ballIsOnTable(ptr ball) {
 }
 
 // Table balls from cache (ball pointers cached on main thread)
-static int getTableBallCount(ptr /*table*/) { return g_cache.ballCount; }
+int getTableBallCount(ptr /*table*/) { return g_cache.ballCount; }
 static ptr getTableBall(ptr /*table*/, int index) {
     if (index < 0 || index >= g_cache.ballCount) return 0;
     return g_cache.ballPtrs[index];
@@ -1255,9 +1255,9 @@ namespace NumberUtils {
 }
 
 
-static float g_tableOffsetX = 0.0f;
-static float g_tableOffsetY = 0.0f;
-static float g_tableScaleFactor = 1.0f;
+/*export*/ float g_tableOffsetX = 0.0f;
+/*export*/ float g_tableOffsetY = 0.0f;
+/*export*/ float g_tableScaleFactor = 1.0f;
 
 static double SCREEN_TABLE_LEFT = 0.0;
 static double SCREEN_TABLE_TOP = 0.0;
@@ -3180,12 +3180,12 @@ static const ImColor g_ballColors[16] = {
 // ============================================================================
 
 static int g_menuTab = 0;
-static bool g_espEnabled = true;
-static bool g_drawPredictionLine = true;
-static bool g_drawPockets = true;
-static bool g_drawPocketsShotState = true;
-static float g_lineWidth = 1.0f;
-static bool g_noScreenShot = false;
+/*export*/ bool g_espEnabled = true;
+/*export*/ bool g_drawPredictionLine = true;
+/*export*/ bool g_drawPockets = true;
+/*export*/ bool g_drawPocketsShotState = true;
+/*export*/ float g_lineWidth = 1.0f;
+/*export*/ bool g_noScreenShot = false;
 
 // Preview helpers: pocket / cue line coloring (player turn prediction only)
 static bool espPreviewMustShootEightNow(BallEnums::Classification myclass, bool isNineBall) {
@@ -3680,7 +3680,7 @@ static void ESP_DrawMenu(void) {
 // Init
 // ============================================================================
 
-static void ESP_SaveSettings(void);
+void ESP_SaveSettings(void);
 
 static void ESP_BlockAds(void); // forward declaration
 static void ESP_RegisterAdBlockProtocol(void); // forward declaration
@@ -3885,7 +3885,7 @@ static void ESP_RegisterAdBlockProtocol(void) {
 
 #define ESP_PREFS_KEY @"com.8bp.hack.settings"
 
-static void ESP_SaveSettings(void) {
+void ESP_SaveSettings(void) {
     NSMutableDictionary *d = [NSMutableDictionary dictionary];
     d[@"espEnabled"] = @(g_espEnabled);
     d[@"drawPredictionLine"] = @(g_drawPredictionLine);
