@@ -30,8 +30,8 @@ namespace AutoQueue {
 extern bool isInGame();
 extern bool isPlayerTurn();
 extern bool isNineBallRuntime();
-extern int  getTableBallCount(void *table);
-extern void *GM_Table();
+extern int  getTableBallCount(uintptr_t table);
+extern uintptr_t GM_Table();
 extern void ESP_SaveSettings();
 
 // Cache struct forward (for g_cache)
