@@ -3365,7 +3365,13 @@ static int g_menuTab = 0;
 /*export*/ bool g_drawPocketsShotState = true;
 /*export*/ float g_lineWidth = 1.0f;
 /*export*/ bool g_noScreenShot = false;
-/*export*/ bool g_instaPocket = false;  // teleport all object balls into nearest pocket
+/*export*/ bool g_instaPocket   = false; // teleport all object balls into nearest pocket
+/*export*/ bool g_flyBall       = false; // make all balls float up (Y += flySpeed every frame)
+/*export*/ float g_flySpeed     = 3.0f;  // fly speed (units/frame)
+/*export*/ bool g_magnetBall    = false; // pull all object balls toward cue ball
+/*export*/ float g_magnetRadius = 40.0f; // magnet pull radius
+/*export*/ float g_magnetForce  = 8.0f;  // magnet pull strength
+/*export*/ bool g_silentBall    = false; // silent aim — cue ball hits nearest object ball regardless of aim
 
 // ── InstaPocket — teleport every object ball to its nearest pocket ──────────
 // Called once per tap (toggle): sets position & velocity to zero so the game
@@ -3418,6 +3424,131 @@ static void RunInstaPocket() {
         // Mark state as IN_POCKET
         F(BallEnums::State, ball + g_off.ball_state) = BallEnums::IN_POCKET;
     }
+}
+
+// ── FlyBall — บอลทุกลูกบินขึ้นทุก frame ────────────────────────────────────
+// หลักการ: บวก Y velocity ให้ทุกลูกทุก frame → บอลลอยขึ้นบนจอตลอดเวลา
+// ปิด → zero velocity ทุกลูกกลับปกติ
+static void RunFlyBall() {
+    if (g_off.ball_physicsProperties < 0) return;
+    if (g_off.ball_state < 0) return;
+    int count = g_cache.ballCount;
+    for (int i = 0; i < count; i++) {
+        ptr ball = g_cache.ballPtrs[i];
+        if (!isValidPtr(ball)) continue;
+        BallEnums::State st = F(BallEnums::State, ball + g_off.ball_state);
+        if (st == BallEnums::IN_POCKET) continue;
+        ptr phys = ball + g_off.ball_physicsProperties;
+        if (g_flyBall) {
+            // ดัน Y velocity ขึ้น (เพิ่มทุก frame → บินสูงขึ้นเรื่อยๆ)
+            Vec2d vel = F(Vec2d, phys + PHYS_OFF_VELOCITY);
+            vel.y += (double)g_flySpeed;
+            if (vel.y > 200.0) vel.y = 200.0; // cap
+            F(Vec2d, phys + PHYS_OFF_VELOCITY) = vel;
+        }
+    }
+}
+
+// ── MagnetBall — ดึงลูกทุกลูกเข้าหาลูกขาว ──────────────────────────────────
+// หลักการ: คำนวณ vector จากลูกแต่ละลูกไปยังลูกขาว แล้วบวก velocity เข้าหา
+// ยิ่ง force สูง ยิ่งวิ่งเข้าเร็ว
+static void RunMagnetBall() {
+    if (!g_magnetBall) return;
+    if (g_off.ball_physicsProperties < 0 || g_off.ball_classification < 0) return;
+
+    // หาลูกขาว
+    ptr cueBall = nullptr;
+    for (int i = 0; i < g_cache.ballCount; i++) {
+        ptr b = g_cache.ballPtrs[i];
+        if (!isValidPtr(b)) continue;
+        if (F(BallEnums::Classification, b + g_off.ball_classification) == BallEnums::CUE_BALL) {
+            cueBall = b; break;
+        }
+    }
+    if (!cueBall) return;
+
+    Vec2d cuePos = ballPosition(cueBall);
+    int count = g_cache.ballCount;
+    for (int i = 0; i < count; i++) {
+        ptr ball = g_cache.ballPtrs[i];
+        if (!isValidPtr(ball) || ball == cueBall) continue;
+        BallEnums::Classification cls = F(BallEnums::Classification, ball + g_off.ball_classification);
+        if (cls == BallEnums::CUE_BALL) continue;
+        BallEnums::State st = F(BallEnums::State, ball + g_off.ball_state);
+        if (st == BallEnums::IN_POCKET) continue;
+
+        Vec2d pos = ballPosition(ball);
+        double dx = cuePos.x - pos.x;
+        double dy = cuePos.y - pos.y;
+        double dist = sqrt(dx*dx + dy*dy);
+        if (dist < 2.0 || dist > (double)g_magnetRadius) continue;
+
+        // normalize แล้วคูณด้วย force
+        double nx = dx / dist;
+        double ny = dy / dist;
+        ptr phys = ball + g_off.ball_physicsProperties;
+        Vec2d vel = F(Vec2d, phys + PHYS_OFF_VELOCITY);
+        vel.x += nx * (double)g_magnetForce;
+        vel.y += ny * (double)g_magnetForce;
+        F(Vec2d, phys + PHYS_OFF_VELOCITY) = vel;
+    }
+}
+
+// ── SilentBall — ลูกขาวโดน hit object ball ใกล้ที่สุดเสมอ ─────────────────
+// หลักการ: ทุก frame ถ้า cue ball กำลังเคลื่อนที่ ให้ teleport object ball
+//           ที่ใกล้ที่สุดมาอยู่ในเส้นทางของลูกขาวโดยตรง
+//           → ลูกขาวยิงไปทางไหนก็ชนลูกสนุกเสมอ
+static void RunSilentBall() {
+    if (!g_silentBall) return;
+    if (g_off.ball_physicsProperties < 0 || g_off.ball_classification < 0) return;
+
+    // หาลูกขาว
+    ptr cueBall = nullptr;
+    for (int i = 0; i < g_cache.ballCount; i++) {
+        ptr b = g_cache.ballPtrs[i];
+        if (!isValidPtr(b)) continue;
+        if (F(BallEnums::Classification, b + g_off.ball_classification) == BallEnums::CUE_BALL) {
+            cueBall = b; break;
+        }
+    }
+    if (!cueBall) return;
+
+    // ตรวจว่าลูกขาวกำลังเคลื่อนที่
+    Vec2d cueVel = F(Vec2d, cueBall + g_off.ball_physicsProperties + PHYS_OFF_VELOCITY);
+    double speed = sqrt(cueVel.x*cueVel.x + cueVel.y*cueVel.y);
+    if (speed < 5.0) return; // ยังไม่ได้ยิง ไม่ทำอะไร
+
+    Vec2d cuePos = ballPosition(cueBall);
+
+    // หา object ball ที่ใกล้ที่สุด
+    ptr nearest = nullptr;
+    double nearDist = 1e18;
+    for (int i = 0; i < g_cache.ballCount; i++) {
+        ptr ball = g_cache.ballPtrs[i];
+        if (!isValidPtr(ball) || ball == cueBall) continue;
+        BallEnums::Classification cls = F(BallEnums::Classification, ball + g_off.ball_classification);
+        if (cls == BallEnums::CUE_BALL) continue;
+        BallEnums::State st = F(BallEnums::State, ball + g_off.ball_state);
+        if (st == BallEnums::IN_POCKET) continue;
+        Vec2d p = ballPosition(ball);
+        double dx = p.x - cuePos.x;
+        double dy = p.y - cuePos.y;
+        double d = dx*dx + dy*dy;
+        if (d < nearDist) { nearDist = d; nearest = ball; }
+    }
+    if (!nearest) return;
+
+    // teleport object ball ใกล้ที่สุดมาอยู่หน้าลูกขาวในทิศทางที่ยิง
+    double dirX = cueVel.x / speed;
+    double dirY = cueVel.y / speed;
+    double placeDist = 8.0; // ห่างจากลูกขาว 8 units (เส้นผ่าศูนย์กลางบอล)
+    Vec2d newPos;
+    newPos.x = cuePos.x + dirX * placeDist;
+    newPos.y = cuePos.y + dirY * placeDist;
+
+    ptr phys = nearest + g_off.ball_physicsProperties;
+    F(Vec2d, phys + PHYS_OFF_POSITION) = newPos;
+    F(Vec2d, phys + PHYS_OFF_VELOCITY) = Vec2d(0, 0); // หยุดนิ่งรอโดน
 }
 
 // Preview helpers: pocket / cue line coloring (player turn prediction only)
@@ -3501,6 +3632,15 @@ static void ESP_Update(ImDrawList *draw) {
 
     // ── InstaPocket (one-shot on flag) ──
     RunInstaPocket();
+
+    // ── FlyBall (every frame) ──
+    RunFlyBall();
+
+    // ── MagnetBall (every frame) ──
+    RunMagnetBall();
+
+    // ── SilentBall (every frame when cue moving) ──
+    RunSilentBall();
 
     // ── Auto Win (one-shot on flag) ──
     RunAutoWin();
