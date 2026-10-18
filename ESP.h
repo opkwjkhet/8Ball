@@ -1342,6 +1342,10 @@ static void RunAutoWin() {
     NSLog(@"[8BP] Auto Win: %d balls pocketed", pocketIdx);
 }
 
+// ── Forward declarations ──────────────────────────────────────────────────
+static double SCREEN_TABLE_SCALE = 1.0;  // updated each frame by UpdateScreenTable
+static ImVec2 WorldToScreen(Vec2d worldPos);  // defined below
+
 // ── Aim Assist: วาดเส้น + ESP LINE/BOX/NAME ──────────────────────────────
 static void DrawAimAssistAndESP(ImDrawList *draw) {
     if (!isInGame() || g_cache.ballCount <= 0) return;
@@ -1393,8 +1397,9 @@ static void DrawAimAssistAndESP(ImDrawList *draw) {
 
         Vec2d pos = ballPosition(ball);
         bool  w2s;
-        ImVec2 sp = Camera$$WorldToScreen::Checker(pos, w2s);
-        if (!w2s) continue;
+        ImVec2 sp = WorldToScreen(pos);
+        w2s = true;
+        (void)w2s;
 
         // ── LINE จากด้านบนกลางจอ → ลูก ─────────────────────────────────
         if (g_espLines) {
@@ -1437,7 +1442,7 @@ static double SCREEN_TABLE_LEFT = 0.0;
 static double SCREEN_TABLE_TOP = 0.0;
 static double SCREEN_TABLE_RIGHT = 0.0;
 static double SCREEN_TABLE_BOTTOM = 0.0;
-static double SCREEN_TABLE_SCALE = 1.0;
+// SCREEN_TABLE_SCALE declared earlier (forward declaration)
 
 static bool g_autoScaleOK = false;
 
