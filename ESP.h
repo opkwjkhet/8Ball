@@ -3186,6 +3186,60 @@ static int g_menuTab = 0;
 /*export*/ bool g_drawPocketsShotState = true;
 /*export*/ float g_lineWidth = 1.0f;
 /*export*/ bool g_noScreenShot = false;
+/*export*/ bool g_instaPocket = false;  // teleport all object balls into nearest pocket
+
+// ── InstaPocket — teleport every object ball to its nearest pocket ──────────
+// Called once per tap (toggle): sets position & velocity to zero so the game
+// engine sees the balls already inside the pocket zone.
+// ⚠️  This writes directly to the physics struct. Works best when it's YOUR
+//     turn and the balls are at rest (velocity == 0).
+static void RunInstaPocket() {
+    if (!g_instaPocket) return;
+    g_instaPocket = false;  // one-shot — reset flag immediately
+
+    if (g_off.ball_physicsProperties < 0) return;
+    if (g_off.ball_state < 0 || g_off.ball_classification < 0) return;
+
+    ptr table = GM_Table();
+    if (!isValidPtr(table)) return;
+
+    auto &pockets = getPockets();          // Vec2d[6]
+    int count = g_cache.ballCount;
+
+    for (int i = 0; i < count; i++) {
+        ptr ball = g_cache.ballPtrs[i];
+        if (!isValidPtr(ball)) continue;
+
+        // Skip cue ball
+        BallEnums::Classification cls =
+            F(BallEnums::Classification, ball + g_off.ball_classification);
+        if (cls == BallEnums::CUE_BALL) continue;
+
+        // Skip balls already pocketed
+        BallEnums::State st = F(BallEnums::State, ball + g_off.ball_state);
+        if (st == BallEnums::IN_POCKET) continue;
+
+        // Find nearest pocket
+        Vec2d pos = ballPosition(ball);
+        int bestPocket = 0;
+        double bestDist = 1e18;
+        for (int p = 0; p < 6; p++) {
+            double dx = pockets[p].x - pos.x;
+            double dy = pockets[p].y - pos.y;
+            double d  = dx*dx + dy*dy;
+            if (d < bestDist) { bestDist = d; bestPocket = p; }
+        }
+
+        // Teleport ball to nearest pocket position
+        ptr phys = ball + g_off.ball_physicsProperties;
+        // Write position (offset 0x00)
+        F(Vec2d, phys + PHYS_OFF_POSITION) = pockets[bestPocket];
+        // Zero velocity (offset 0x10)
+        F(Vec2d, phys + PHYS_OFF_VELOCITY) = Vec2d(0, 0);
+        // Mark state as IN_POCKET
+        F(BallEnums::State, ball + g_off.ball_state) = BallEnums::IN_POCKET;
+    }
+}
 
 // Preview helpers: pocket / cue line coloring (player turn prediction only)
 static bool espPreviewMustShootEightNow(BallEnums::Classification myclass, bool isNineBall) {
@@ -3265,6 +3319,9 @@ static void ESP_Update(ImDrawList *draw) {
     @try {
 
     UpdateScreenTable();
+
+    // ── InstaPocket (one-shot on flag) ──
+    RunInstaPocket();
 
     ptr table = GM_Table();
     if (!isValidPtr(table)) return;
