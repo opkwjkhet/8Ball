@@ -697,7 +697,7 @@ static UIKitMenu *_shared;
                                      width:kRowW
                                     action:^{
         // Trigger one-shot teleport on next render frame
-        g_instaPocket = true;
+        Bridge_TriggerInstaPocket();
     }] group:0];
     // Aim
     [p add:[self boolRow:@"Auto Aim (rotate cue)" ptr:&AutoPlay::bAutoAim asSwitch:YES] group:1];
