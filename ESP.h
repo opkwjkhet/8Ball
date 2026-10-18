@@ -1259,6 +1259,180 @@ namespace NumberUtils {
 /*export*/ float g_tableOffsetY = 0.0f;
 /*export*/ float g_tableScaleFactor = 1.0f;
 
+// ── Aim Assist ────────────────────────────────────────────────────────────
+/*export*/ bool  g_aimAssistEnabled  = false;
+/*export*/ float g_aimGainX          = 1.0f;
+/*export*/ float g_aimGainY          = 1.0f;
+/*export*/ float g_aimGainZ          = 1.0f;
+/*export*/ float g_aimLineThickness  = 2.0f;
+/*export*/ int   g_aimLineColor      = 1;   // 0=Black 1=Red 2=Green 3=Purple 4=White
+
+// ── Native Power ─────────────────────────────────────────────────────────
+/*export*/ bool  g_nativePowerEnabled = false;
+/*export*/ float g_nativePowerValue   = 1.0f;
+
+// ── Auto Win ─────────────────────────────────────────────────────────────
+/*export*/ bool  g_autoWinPending = false;
+
+// ── ESP LINE / BOX / NAME ─────────────────────────────────────────────────
+/*export*/ bool  g_espLines = false;
+/*export*/ bool  g_espBox   = false;
+/*export*/ bool  g_espName  = false;
+
+// ── Aim Assist: ส่งคืนสีตาม index ───────────────────────────────────────
+static ImU32 GetAimLineColor() {
+    switch (g_aimLineColor) {
+        case 0: return IM_COL32(0,   0,   0,   255); // Black
+        case 1: return IM_COL32(255, 30,  30,  255); // Red
+        case 2: return IM_COL32(30,  220, 30,  255); // Green
+        case 3: return IM_COL32(160, 30,  220, 255); // Purple
+        case 4: return IM_COL32(255, 255, 255, 255); // White
+        default:return IM_COL32(255, 30,  30,  255);
+    }
+}
+
+// ── Native Power: apply ทุก frame ────────────────────────────────────────
+static void RunNativePower() {
+    if (!g_nativePowerEnabled) return;
+    ptr vc = GM_VisualCue();
+    if (!isValidPtr(vc) || g_off.vc_mPower < 0) return;
+    F(double, vc + g_off.vc_mPower) = (double)g_nativePowerValue;
+    // clamp CurrentPowerOffset ด้วยเพื่อความแม่นยำ
+    if (g_off.vc_mCurrentPowerOffset >= 0)
+        F(double, vc + g_off.vc_mCurrentPowerOffset) = 0.0;
+}
+
+// ── Auto Win: teleport ลูกทุกลูกเข้าโพ็คเก็ต ────────────────────────────
+static void RunAutoWin() {
+    if (!g_autoWinPending) return;
+    g_autoWinPending = false;
+
+    if (g_off.ball_physicsProperties < 0 ||
+        g_off.ball_state < 0 ||
+        g_off.ball_classification < 0) return;
+
+    static const Vec2d kPockets[6] = {
+        {-130.8, -67.3}, {0, -72}, {130.8, -67.3},
+        {130.8,   67.3}, {0,  72}, {-130.8, 67.3}
+    };
+
+    int pocketIdx = 0;
+    for (int i = 0; i < g_cache.ballCount; i++) {
+        ptr ball = g_cache.ballPtrs[i];
+        if (!isValidPtr(ball)) continue;
+
+        // Skip cue ball
+        BallEnums::Classification cls =
+            F(BallEnums::Classification, ball + g_off.ball_classification);
+        if (cls == BallEnums::CUE_BALL) continue;
+
+        // Skip already pocketed
+        BallEnums::State st = F(BallEnums::State, ball + g_off.ball_state);
+        if (st == BallEnums::IN_POCKET) continue;
+
+        ptr phys = ball + g_off.ball_physicsProperties;
+        // Set position → nearest pocket
+        F(Vec2d, phys + PHYS_OFF_POSITION) = kPockets[pocketIdx % 6];
+        // Zero velocity
+        F(Vec2d, phys + PHYS_OFF_VELOCITY) = Vec2d(0, 0);
+        // Mark IN_POCKET
+        F(BallEnums::State, ball + g_off.ball_state) = BallEnums::IN_POCKET;
+        pocketIdx++;
+    }
+    NSLog(@"[8BP] Auto Win: %d balls pocketed", pocketIdx);
+}
+
+// ── Aim Assist: วาดเส้น + ESP LINE/BOX/NAME ──────────────────────────────
+static void DrawAimAssistAndESP(ImDrawList *draw) {
+    if (!isInGame() || g_cache.ballCount <= 0) return;
+
+    ptr table = GM_Table();
+    if (!isValidPtr(table)) return;
+
+    ImVec2 dispSz = ImGui::GetIO().DisplaySize;
+    float  screenW = dispSz.x, screenH = dispSz.y;
+    float  centerX = screenW * 0.5f;
+    float  topY    = 12.0f;
+
+    // ── Aim Assist ────────────────────────────────────────────────────────
+    if (g_aimAssistEnabled) {
+        // ใช้ลูกขาวเป็น origin
+        ptr cueBall = g_cache.ballPtrs[0];
+        if (isValidPtr(cueBall)) {
+            Vec2d cuePos = ballPosition(cueBall);
+            ImVec2 cueScreen = WorldToScreen(cuePos);
+
+            // หาศัตรู (ลูกที่ใกล้สุดในทิศทางเล็ง)
+            double aimAngle = getAimAngle();
+            float  dx = cosf((float)aimAngle) * g_aimGainX * g_aimGainZ * 100.0f;
+            float  dy = sinf((float)aimAngle) * g_aimGainY * g_aimGainZ * 100.0f;
+
+            ImVec2 aimEnd(cueScreen.x + dx, cueScreen.y - dy);
+            ImU32  col = GetAimLineColor();
+
+            draw->AddLine(cueScreen, aimEnd, col, g_aimLineThickness);
+            // จุดปลาย
+            draw->AddCircleFilled(aimEnd, g_aimLineThickness * 2.0f, col);
+        }
+    }
+
+    // ── ESP LINE / BOX / NAME (สีดำ) ─────────────────────────────────────
+    if (!g_espLines && !g_espBox && !g_espName) return;
+
+    const ImU32 kBlack  = IM_COL32(0,   0,   0, 255);
+    const ImU32 kWhite  = IM_COL32(255, 255, 255, 255);
+    const float kLW     = 1.5f;
+
+    for (int i = 1; i < g_cache.ballCount; i++) {
+        ptr ball = g_cache.ballPtrs[i];
+        if (!isValidPtr(ball)) continue;
+        if (g_off.ball_state < 0) continue;
+
+        BallEnums::State st = F(BallEnums::State, ball + g_off.ball_state);
+        if (st != BallEnums::DEFAULT) continue;
+
+        Vec2d pos = ballPosition(ball);
+        bool  w2s;
+        ImVec2 sp = Camera$$WorldToScreen::Checker(pos, w2s);
+        if (!w2s) continue;
+
+        // ── LINE จากด้านบนกลางจอ → ลูก ─────────────────────────────────
+        if (g_espLines) {
+            draw->AddLine(ImVec2(centerX, topY), sp, kBlack, kLW);
+        }
+
+        // ── BOX รอบลูก ────────────────────────────────────────────────────
+        if (g_espBox) {
+            float r = fmaxf(6.0f, (float)(BALL_RADIUS * SCREEN_TABLE_SCALE));
+            ImVec2 bMin(sp.x - r, sp.y - r);
+            ImVec2 bMax(sp.x + r, sp.y + r);
+            draw->AddRect(bMin, bMax, kBlack, 2.0f, 0, kLW);
+        }
+
+        // ── NAME ──────────────────────────────────────────────────────────
+        if (g_espName) {
+            BallEnums::Classification cls =
+                (g_off.ball_classification >= 0)
+                ? F(BallEnums::Classification, ball + g_off.ball_classification)
+                : BallEnums::ANY;
+            char nameBuf[16];
+            if (cls == BallEnums::SOLID)  snprintf(nameBuf, sizeof(nameBuf), "S%d", i);
+            else if (cls == BallEnums::STRIPE) snprintf(nameBuf, sizeof(nameBuf), "ST%d", i);
+            else if (cls == BallEnums::EIGHT_BALL) snprintf(nameBuf, sizeof(nameBuf), "8");
+            else snprintf(nameBuf, sizeof(nameBuf), "B%d", i);
+
+            float r = fmaxf(6.0f, (float)(BALL_RADIUS * SCREEN_TABLE_SCALE));
+            float textY = sp.y - r - 14.0f;
+            // Shadow ขาว
+            draw->AddText(ImGui::GetFont(), 12.0f,
+                          ImVec2(sp.x + 1, textY + 1), kWhite, nameBuf);
+            // Text ดำ
+            draw->AddText(ImGui::GetFont(), 12.0f,
+                          ImVec2(sp.x, textY), kBlack, nameBuf);
+        }
+    }
+}
+
 static double SCREEN_TABLE_LEFT = 0.0;
 static double SCREEN_TABLE_TOP = 0.0;
 static double SCREEN_TABLE_RIGHT = 0.0;
@@ -3323,6 +3497,12 @@ static void ESP_Update(ImDrawList *draw) {
     // ── InstaPocket (one-shot on flag) ──
     RunInstaPocket();
 
+    // ── Auto Win (one-shot on flag) ──
+    RunAutoWin();
+
+    // ── Native Power (every frame) ──
+    RunNativePower();
+
     ptr table = GM_Table();
     if (!isValidPtr(table)) return;
 
@@ -3389,6 +3569,9 @@ static void ESP_Update(ImDrawList *draw) {
             draw->AddCircleFilled(WorldToScreen(ball.predictedPosition), br, col);
         }
     }
+
+    // ── Aim Assist + ESP LINE/BOX/NAME ──
+    DrawAimAssistAndESP(draw);
 
     } @catch (NSException *e) {
         NSLog(@"[8BP] ESP_Update exception: %@", e);
@@ -3958,6 +4141,20 @@ void ESP_SaveSettings(void) {
     d[@"tableOffsetX"] = @(g_tableOffsetX);
     d[@"tableOffsetY"] = @(g_tableOffsetY);
     d[@"tableScaleFactor"] = @(g_tableScaleFactor);
+    // Aim Assist
+    d[@"aimAssistEnabled"]  = @(g_aimAssistEnabled);
+    d[@"aimGainX"]          = @(g_aimGainX);
+    d[@"aimGainY"]          = @(g_aimGainY);
+    d[@"aimGainZ"]          = @(g_aimGainZ);
+    d[@"aimLineThickness"]  = @(g_aimLineThickness);
+    d[@"aimLineColor"]      = @(g_aimLineColor);
+    // Native Power
+    d[@"nativePowerEnabled"] = @(g_nativePowerEnabled);
+    d[@"nativePowerValue"]   = @(g_nativePowerValue);
+    // ESP overlay
+    d[@"espLines"] = @(g_espLines);
+    d[@"espBox"]   = @(g_espBox);
+    d[@"espName"]  = @(g_espName);
     [[NSUserDefaults standardUserDefaults] setObject:d forKey:ESP_PREFS_KEY];
     [[NSUserDefaults standardUserDefaults] synchronize];
 }
@@ -3979,6 +4176,20 @@ static void ESP_LoadSettings(void) {
     if (d[@"tableOffsetX"]) g_tableOffsetX = [d[@"tableOffsetX"] floatValue];
     if (d[@"tableOffsetY"]) g_tableOffsetY = [d[@"tableOffsetY"] floatValue];
     if (d[@"tableScaleFactor"]) g_tableScaleFactor = [d[@"tableScaleFactor"] floatValue];
+    // Aim Assist
+    if (d[@"aimAssistEnabled"])  g_aimAssistEnabled  = [d[@"aimAssistEnabled"]  boolValue];
+    if (d[@"aimGainX"])          g_aimGainX          = [d[@"aimGainX"]          floatValue];
+    if (d[@"aimGainY"])          g_aimGainY          = [d[@"aimGainY"]          floatValue];
+    if (d[@"aimGainZ"])          g_aimGainZ          = [d[@"aimGainZ"]          floatValue];
+    if (d[@"aimLineThickness"])  g_aimLineThickness  = [d[@"aimLineThickness"]  floatValue];
+    if (d[@"aimLineColor"])      g_aimLineColor      = [d[@"aimLineColor"]      intValue];
+    // Native Power
+    if (d[@"nativePowerEnabled"]) g_nativePowerEnabled = [d[@"nativePowerEnabled"] boolValue];
+    if (d[@"nativePowerValue"])   g_nativePowerValue   = [d[@"nativePowerValue"]   floatValue];
+    // ESP overlay
+    if (d[@"espLines"]) g_espLines = [d[@"espLines"] boolValue];
+    if (d[@"espBox"])   g_espBox   = [d[@"espBox"]   boolValue];
+    if (d[@"espName"])  g_espName  = [d[@"espName"]  boolValue];
     NSLog(@"[8BP] Settings loaded");
 }
 
