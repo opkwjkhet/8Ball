@@ -41,6 +41,22 @@ extern void ESP_SaveSettings();
 struct ESPCache_t;
 extern ESPCache_t g_cache;
 
+// ── Aim Assist + Native Power + Auto Win (defined in ESP.h) ──────────────
+extern bool  g_aimAssistEnabled;
+extern float g_aimGainX;
+extern float g_aimGainY;
+extern float g_aimGainZ;
+extern float g_aimLineThickness;
+extern int   g_aimLineColor;      // 0=Black 1=Red 2=Green 3=Purple 4=White
+extern bool  g_nativePowerEnabled;
+extern float g_nativePowerValue;  // 0.0 - 1.0
+extern bool  g_autoWinPending;    // one-shot flag
+
+// ESP LINE/BOX/NAME
+extern bool  g_espLines;
+extern bool  g_espBox;
+extern bool  g_espName;
+
 // ════════════════════════════════════════════════════════════════════════════
 // MARK: - Palette  (sampled from the reference screenshots)
 // ════════════════════════════════════════════════════════════════════════════
@@ -631,15 +647,16 @@ static UIKitMenu *_shared;
 
     // Pages
     CGRect sf = CGRectMake(kSideW+1, kHeadH, kW-kSideW-1, kH-kHeadH-14);
-    MenuPage *pAuto = [[MenuPage alloc] initWithTitle:@"AUTO"     symbol:@"scope"        frame:sf];
-    MenuPage *pVis  = [[MenuPage alloc] initWithTitle:@"VISUALS"  symbol:@"eye"          frame:sf];
-    MenuPage *pMisc = [[MenuPage alloc] initWithTitle:@"MISC"     symbol:@"shippingbox"  frame:sf];
-    MenuPage *pSet  = [[MenuPage alloc] initWithTitle:@"SETTINGS" symbol:@"gearshape"    frame:sf];
-    MenuPage *pAcc  = [[MenuPage alloc] initWithTitle:@"ACCOUNT"  symbol:@"person"       frame:sf];
-    self.pages = @[pAuto, pVis, pMisc, pSet, pAcc];
+    MenuPage *pAuto = [[MenuPage alloc] initWithTitle:@"AUTO"     symbol:@"scope"          frame:sf];
+    MenuPage *pAim  = [[MenuPage alloc] initWithTitle:@"AIM"      symbol:@"target"         frame:sf];
+    MenuPage *pVis  = [[MenuPage alloc] initWithTitle:@"VISUALS"  symbol:@"eye"            frame:sf];
+    MenuPage *pMisc = [[MenuPage alloc] initWithTitle:@"MISC"     symbol:@"shippingbox"    frame:sf];
+    MenuPage *pSet  = [[MenuPage alloc] initWithTitle:@"SETTINGS" symbol:@"gearshape"      frame:sf];
+    MenuPage *pAcc  = [[MenuPage alloc] initWithTitle:@"ACCOUNT"  symbol:@"person"         frame:sf];
+    self.pages = @[pAuto, pAim, pVis, pMisc, pSet, pAcc];
     for (MenuPage *p in self.pages) { p.scroll.hidden = YES; [self addSubview:p.scroll]; }
-    [self buildAuto:pAuto]; [self buildVisuals:pVis]; [self buildMisc:pMisc];
-    [self buildSettings:pSet]; [self buildAccount:pAcc];
+    [self buildAuto:pAuto]; [self buildAim:pAim]; [self buildVisuals:pVis];
+    [self buildMisc:pMisc]; [self buildSettings:pSet]; [self buildAccount:pAcc];
 
     // Sidebar buttons: icon centre at 35pt, pitch 70.7pt, label 22pt below icon
     NSMutableArray *btns = [NSMutableArray array];
@@ -708,14 +725,70 @@ static UIKitMenu *_shared;
     [p add:[self boolRow:@"AutoQueue (Rematch)" ptr:&AutoQueue::bAutoQueue asSwitch:YES] group:2];
 }
 
-// ── Page 1: Visuals ────────────────────────────────────────────────────────
+// ── Page 1: AIM ASSIST + Native Power + Auto Win ───────────────────────────
+- (void)buildAim:(MenuPage *)p {
+    [p setSegments:@[@"Aim Assist", @"Power", @"Win"]];
+
+    // ── Aim Assist ────────────────────────────────────────────────────────
+    [p add:[self boolRow:@"Aim Assist" ptr:&g_aimAssistEnabled asSwitch:YES] group:0];
+    [p add:mkLabel(@"Gain") group:0];
+    [p add:[[FloatRow alloc] initWithTitle:@"Gain X"
+                                      ptr:&g_aimGainX min:0.0 max:5.0 fmt:@"%.2f"
+                                    width:kRowW] group:0];
+    [p add:[[FloatRow alloc] initWithTitle:@"Gain Y"
+                                      ptr:&g_aimGainY min:0.0 max:5.0 fmt:@"%.2f"
+                                    width:kRowW] group:0];
+    [p add:[[FloatRow alloc] initWithTitle:@"Gain Z"
+                                      ptr:&g_aimGainZ min:0.0 max:5.0 fmt:@"%.2f"
+                                    width:kRowW] group:0];
+    [p add:mkLabel(@"Line Style") group:0];
+    [p add:[[FloatRow alloc] initWithTitle:@"Thickness"
+                                      ptr:&g_aimLineThickness min:0.5 max:8.0 fmt:@"%.1f"
+                                    width:kRowW] group:0];
+    [p add:MKSetGap([[DropdownRow alloc]
+                     initWithOptions:@[@"⬛ Black", @"🔴 Red", @"🟢 Green", @"🟣 Purple", @"⬜ White"]
+                            indexPtr:&g_aimLineColor width:kRowW], 9) group:0];
+
+    // ── Native Power ──────────────────────────────────────────────────────
+    [p add:[self boolRow:@"Native Power" ptr:&g_nativePowerEnabled asSwitch:YES] group:1];
+    [p add:mkLabel(@"Power level") group:1];
+    [p add:[[FloatRow alloc] initWithTitle:@"Power"
+                                      ptr:&g_nativePowerValue min:0.0 max:1.0 fmt:@"%.2f"
+                                    width:kRowW] group:1];
+
+    // ── Auto Win ──────────────────────────────────────────────────────────
+    [p addTop:mkNote(@"One-shot: teleports all balls into pockets immediately.",
+                     @[@"One-shot", @"immediately"])];
+    [p add:[[ActionRow alloc]
+            initWithTitle:@"🏆  AUTO WIN (One Shot)"
+                   symbol:@"trophy.fill"
+                    width:kRowW
+                   action:^{
+        g_autoWinPending = true;
+        ESP_SaveSettings();
+    }] group:2];
+}
+
+// ── Page 2: Visuals ────────────────────────────────────────────────────────
 - (void)buildVisuals:(MenuPage *)p {
+    [p setSegments:@[@"Prediction", @"ESP Overlay"]];
+
+    // ── Prediction Lines / Pockets ────────────────────────────────────────
     [p add:[self boolRow:@"Enable ESP"        ptr:&g_espEnabled           asSwitch:NO] group:0];
     [p add:[self boolRow:@"Prediction Lines"  ptr:&g_drawPredictionLine   asSwitch:NO] group:0];
     [p add:[self boolRow:@"Draw Pockets"      ptr:&g_drawPockets          asSwitch:NO] group:0];
     [p add:[self boolRow:@"Pocket Shot State" ptr:&g_drawPocketsShotState asSwitch:NO] group:0];
     [p add:mkLabel(@"Line") group:0];
-    [p add:MKSetGap([[FloatRow alloc] initWithTitle:@"Line Width" ptr:&g_lineWidth min:0.5 max:5.0 fmt:@"%.1f" width:kRowW], 9) group:0];
+    [p add:MKSetGap([[FloatRow alloc] initWithTitle:@"Line Width"
+                                               ptr:&g_lineWidth min:0.5 max:5.0 fmt:@"%.1f"
+                                             width:kRowW], 9) group:0];
+
+    // ── ESP LINE / BOX / NAME (สีดำ ด้านบนจอ) ────────────────────────────
+    [p add:mkNote(@"Lines drawn from top of screen. Color: Black.",
+                  @[@"Black"]) group:1];
+    [p add:[self boolRow:@"ESP Lines (top → enemy)"  ptr:&g_espLines asSwitch:YES] group:1];
+    [p add:[self boolRow:@"ESP Box"                  ptr:&g_espBox   asSwitch:YES] group:1];
+    [p add:[self boolRow:@"ESP Name (above box)"     ptr:&g_espName  asSwitch:YES] group:1];
 }
 
 // ── Page 2: Misc (Protection | Debug) ──────────────────────────────────────
