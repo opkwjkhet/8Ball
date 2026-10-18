@@ -3457,7 +3457,7 @@ static void RunMagnetBall() {
     if (g_off.ball_physicsProperties < 0 || g_off.ball_classification < 0) return;
 
     // หาลูกขาว
-    ptr cueBall = nullptr;
+    ptr cueBall = 0;
     for (int i = 0; i < g_cache.ballCount; i++) {
         ptr b = g_cache.ballPtrs[i];
         if (!isValidPtr(b)) continue;
@@ -3503,7 +3503,7 @@ static void RunSilentBall() {
     if (g_off.ball_physicsProperties < 0 || g_off.ball_classification < 0) return;
 
     // หาลูกขาว
-    ptr cueBall = nullptr;
+    ptr cueBall = 0;
     for (int i = 0; i < g_cache.ballCount; i++) {
         ptr b = g_cache.ballPtrs[i];
         if (!isValidPtr(b)) continue;
@@ -3521,7 +3521,7 @@ static void RunSilentBall() {
     Vec2d cuePos = ballPosition(cueBall);
 
     // หา object ball ที่ใกล้ที่สุด
-    ptr nearest = nullptr;
+    ptr nearest = 0;
     double nearDist = 1e18;
     for (int i = 0; i < g_cache.ballCount; i++) {
         ptr ball = g_cache.ballPtrs[i];
