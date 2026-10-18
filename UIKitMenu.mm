@@ -1,6 +1,9 @@
 #import "UIKitMenu.h"
 #import <objc/runtime.h>
-#import "ESP_Bridge.h"
+
+// g_instaPocket is defined as /*export*/ (non-static) in ESP.h — ImGuiDrawView.mm's TU owns it
+extern bool g_instaPocket;
+
 // ── ImGui (for ImGui::GetIO().Framerate only) ──
 #include "ImGui/imgui.h"
 
@@ -697,7 +700,7 @@ static UIKitMenu *_shared;
                                      width:kRowW
                                     action:^{
         // Trigger one-shot teleport on next render frame
-        Bridge_TriggerInstaPocket();
+        g_instaPocket = true;
     }] group:0];
     // Aim
     [p add:[self boolRow:@"Auto Aim (rotate cue)" ptr:&AutoPlay::bAutoAim asSwitch:YES] group:1];
