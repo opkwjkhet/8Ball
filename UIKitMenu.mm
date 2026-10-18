@@ -691,6 +691,14 @@ static UIKitMenu *_shared;
     [p add:mkLabel(@"Play mode") group:0];
     [p add:MKSetGap([[DropdownRow alloc] initWithOptions:@[@"Safe Mode", @"Brutal Mode"]
                                                 indexPtr:&s_playMode width:kRowW], 9) group:0];
+    // ── Insta Pocket ──────────────────────────────────────────────────────
+    [p add:[[ActionRow alloc] initWithTitle:@"💥  Insta Pocket (all balls)"
+                                    symbol:@"arrow.down.circle.fill"
+                                     width:kRowW
+                                    action:^{
+        // Trigger one-shot teleport on next render frame
+        g_instaPocket = true;
+    }] group:0];
     // Aim
     [p add:[self boolRow:@"Auto Aim (rotate cue)" ptr:&AutoPlay::bAutoAim asSwitch:YES] group:1];
     // Queue
