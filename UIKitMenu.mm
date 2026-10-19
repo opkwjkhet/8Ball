@@ -48,33 +48,36 @@ struct ESPCache_t;
 extern ESPCache_t g_cache;
 
 // ════════════════════════════════════════════════════════════════════════════
-// MARK: - Palette  (sampled from the reference screenshots)
+// MARK: - Palette  (Chinese streamer UI — dark grey + teal accent)
 // ════════════════════════════════════════════════════════════════════════════
 static UIColor *MKRGB(int r, int g, int b) {
     return [UIColor colorWithRed:r/255.0 green:g/255.0 blue:b/255.0 alpha:1];
 }
-static UIColor *MK_BG()        { return MKRGB(11, 14, 21);  }   // panel + sidebar
-static UIColor *MK_ROW()       { return MKRGB(25, 32, 40);  }   // rows, segmented bg, dropdown
-static UIColor *MK_ACCENT()    { return MKRGB(254, 85, 20); }   // orange
-static UIColor *MK_ACCENT_BG() { return MKRGB(62, 41, 36);  }   // selected dropdown option
-static UIColor *MK_TEXT()      { return MKRGB(237, 237, 245); }
-static UIColor *MK_DIM()       { return MKRGB(150, 158, 172); }
-static UIColor *MK_SEP()       { return MKRGB(31, 34, 41);  }   // dividers
-static UIColor *MK_TRACK_OFF() { return MKRGB(44, 53, 70);  }   // switch track (off)
-static UIColor *MK_KNOB_OFF()  { return MKRGB(11, 14, 19);  }
+// Exact colours sampled from the two reference screenshots
+static UIColor *MK_BG()        { return MKRGB(28,  28,  30);  }  // #1C1C1E — panel bg
+static UIColor *MK_SIDEBAR()   { return MKRGB(44,  44,  46);  }  // #2C2C2E — sidebar
+static UIColor *MK_ROW()       { return MKRGB(58,  58,  60);  }  // #3A3A3C — rows
+static UIColor *MK_ACCENT()    { return MKRGB( 0, 199, 190);  }  // #00C7BE — teal
+static UIColor *MK_ACCENT_BG() { return [UIColor colorWithRed:0 green:199.0/255 blue:190.0/255 alpha:0.18]; }
+static UIColor *MK_TEXT()      { return MKRGB(240, 240, 245); }
+static UIColor *MK_DIM()       { return MKRGB(140, 140, 150); }
+static UIColor *MK_SEP()       { return [UIColor colorWithWhite:1 alpha:0.08]; }
+static UIColor *MK_TRACK_OFF() { return MKRGB( 72,  72,  74); }  // inactive toggle track
+static UIColor *MK_KNOB_OFF()  { return MKRGB(200, 200, 200); }
+static UIColor *MK_VAL_BG()    { return MKRGB( 0, 199, 190);  }  // slider value badge
 
-// ── Metrics: screenshot is 1280x588 = iPhone landscape 874x402 pt (x1.464) ──
-static const CGFloat kW      = 480;   // panel width
-static const CGFloat kH      = 374;   // panel height
-static const CGFloat kSideW  = 106;   // sidebar width
-static const CGFloat kHeadH  = 70;    // header height (title row)
-static const CGFloat kRH     = 42;    // row height
-static const CGFloat kSegH   = 42;    // segmented control height
-static const CGFloat kPadL   = 14;    // left padding of rows inside content
-static const CGFloat kRowW   = 330;   // row width
-static const CGFloat kGap    = 13;    // gap between rows
-static const CGFloat kR      = 12;    // panel corner radius
-static const CGFloat kRR     = 10;    // row corner radius
+// ── Metrics tuned to match screenshot proportions ──
+static const CGFloat kW      = 410;   // total panel width
+static const CGFloat kH      = 380;   // total panel height
+static const CGFloat kSideW  = 80;    // sidebar width  (icon-only column)
+static const CGFloat kHeadH  = 54;    // content header bar height
+static const CGFloat kRH     = 54;    // row height
+static const CGFloat kSegH   = 44;    // segmented control height
+static const CGFloat kPadL   = 12;    // left padding of rows inside content
+static const CGFloat kRowW   = kW - kSideW - kPadL * 2; // row width
+static const CGFloat kGap    = 10;    // gap between rows
+static const CGFloat kR      = 20;    // panel corner radius
+static const CGFloat kRR     = 14;    // row corner radius
 
 static char kGapKey;
 
@@ -185,10 +188,14 @@ static int s_playMode = 0;
     tl.font = [UIFont systemFontOfSize:15 weight:UIFontWeightMedium];
     [self addSubview:tl];
 
-    _valLbl = [[UILabel alloc] initWithFrame:CGRectMake(w-16-70, 8, 70, 20)];
-    _valLbl.textAlignment = NSTextAlignmentRight;
-    _valLbl.textColor = MK_ACCENT();
-    _valLbl.font = [UIFont systemFontOfSize:14 weight:UIFontWeightMedium];
+    // Value badge — teal background, white text (matches screenshot)
+    _valLbl = [[UILabel alloc] initWithFrame:CGRectMake(w-16-64, 7, 60, 24)];
+    _valLbl.textAlignment    = NSTextAlignmentCenter;
+    _valLbl.textColor        = [UIColor whiteColor];
+    _valLbl.font             = [UIFont systemFontOfSize:13 weight:UIFontWeightBold];
+    _valLbl.backgroundColor  = MK_VAL_BG();
+    _valLbl.layer.cornerRadius = 8;
+    _valLbl.layer.masksToBounds = YES;
     [self addSubview:_valLbl];
 
     UISlider *sl = [[UISlider alloc] initWithFrame:CGRectMake(16, 32, w-32, 22)];
@@ -600,37 +607,54 @@ static UIKitMenu *_shared;
 - (void)buildShell {
     self.backgroundColor     = MK_BG();
     self.layer.cornerRadius  = kR;
-    self.layer.masksToBounds = NO;
+    self.layer.masksToBounds = YES;
     self.layer.shadowColor   = [UIColor blackColor].CGColor;
-    self.layer.shadowRadius  = 24;
-    self.layer.shadowOpacity = 0.65;
-    self.layer.shadowOffset  = CGSizeMake(0, 12);
+    self.layer.shadowRadius  = 30;
+    self.layer.shadowOpacity = 0.7;
+    self.layer.shadowOffset  = CGSizeMake(0, 16);
+
+    // Sidebar background (darker, matches screenshot)
+    UIView *sideBar = [[UIView alloc] initWithFrame:CGRectMake(0, 0, kSideW, kH)];
+    sideBar.backgroundColor = MK_SIDEBAR();
+    [self addSubview:sideBar];
 
     // Sidebar / content divider
-    UIView *vsep = [[UIView alloc] initWithFrame:CGRectMake(kSideW, 0, 1, kH)];
+    UIView *vsep = [[UIView alloc] initWithFrame:CGRectMake(kSideW, 0, 0.5, kH)];
     vsep.backgroundColor = MK_SEP();
     [self addSubview:vsep];
 
-    // Header: icon + title (orange), close button
+    // Header bar background (same as sidebar)
+    UIView *hdrBar = [[UIView alloc] initWithFrame:CGRectMake(kSideW, 0, kW-kSideW, kHeadH)];
+    hdrBar.backgroundColor = MK_SIDEBAR();
+    [self addSubview:hdrBar];
+
+    // Header bottom separator
+    UIView *hdrsep = [[UIView alloc] initWithFrame:CGRectMake(kSideW, kHeadH-0.5, kW-kSideW, 0.5)];
+    hdrsep.backgroundColor = MK_SEP();
+    [self addSubview:hdrsep];
+
+    // Header: icon + title (teal)
     _headIcon = [[UIImageView alloc] initWithFrame:CGRectMake(kSideW+kPadL, (kHeadH-26)/2, 26, 26)];
     _headIcon.tintColor = MK_ACCENT();
     _headIcon.contentMode = UIViewContentModeCenter;
     [self addSubview:_headIcon];
 
-    _headTitle = [[UILabel alloc] initWithFrame:CGRectMake(kSideW+kPadL+26+8, 0, 200, kHeadH)];
+    _headTitle = [[UILabel alloc] initWithFrame:CGRectMake(kSideW+kPadL+30, 0, 220, kHeadH)];
     _headTitle.textColor = MK_ACCENT();
-    _headTitle.font = [UIFont systemFontOfSize:16 weight:UIFontWeightMedium];
+    _headTitle.font = [UIFont systemFontOfSize:17 weight:UIFontWeightBold];
     [self addSubview:_headTitle];
 
     UIButton *close = [UIButton buttonWithType:UIButtonTypeCustom];
-    close.frame = CGRectMake(kW-35-22, (kHeadH-44)/2, 44, 44);
-    [close setImage:MKSym(@"xmark", 20, UIImageSymbolWeightMedium) forState:UIControlStateNormal];
-    close.tintColor = MK_ACCENT();
+    close.frame = CGRectMake(kW-44, (kHeadH-32)/2, 32, 32);
+    close.backgroundColor = [UIColor colorWithWhite:1 alpha:0.08];
+    close.layer.cornerRadius = 16;
+    [close setImage:MKSym(@"xmark", 14, UIImageSymbolWeightMedium) forState:UIControlStateNormal];
+    close.tintColor = MK_DIM();
     [close addTarget:self action:@selector(hide) forControlEvents:UIControlEventTouchUpInside];
     [self addSubview:close];
 
-    // Drag handle = header strip (right of sidebar, left of close)
-    UIView *drag = [[UIView alloc] initWithFrame:CGRectMake(kSideW+1, 0, kW-kSideW-1-60, kHeadH)];
+    // Drag handle = header strip
+    UIView *drag = [[UIView alloc] initWithFrame:CGRectMake(kSideW, 0, kW-kSideW-50, kHeadH)];
     drag.backgroundColor = [UIColor clearColor];
     [drag addGestureRecognizer:[[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(handlePan:)]];
     [self insertSubview:drag belowSubview:close];
@@ -647,25 +671,36 @@ static UIKitMenu *_shared;
     [self buildAuto:pAuto]; [self buildVisuals:pVis]; [self buildMisc:pMisc];
     [self buildSettings:pSet]; [self buildAccount:pAcc];
 
-    // Sidebar buttons: icon centre at 35pt, pitch 70.7pt, label 22pt below icon
+    // Sidebar buttons — evenly spaced, icon + small label, teal indicator bar when selected
     NSMutableArray *btns = [NSMutableArray array];
-    for (NSUInteger i = 0; i < self.pages.count; i++) {
+    NSUInteger pageCount = self.pages.count;
+    CGFloat btnH   = 56;
+    CGFloat spacing = (kH - btnH * pageCount) / (pageCount + 1);
+    for (NSUInteger i = 0; i < pageCount; i++) {
         MenuPage *p = self.pages[i];
-        CGFloat iconY = 35 + i * 70.7;
+        CGFloat btnY = spacing + i * (btnH + spacing);
         UIButton *b = [UIButton buttonWithType:UIButtonTypeCustom];
-        b.frame = CGRectMake(0, iconY - 24, kSideW, 66);
+        b.frame = CGRectMake(0, btnY, kSideW, btnH);
         b.tag = i;
-        UIImageView *iv = [[UIImageView alloc] initWithImage:MKSym(p.symbol, 21, UIImageSymbolWeightRegular)];
+        // Icon
+        UIImageView *iv = [[UIImageView alloc] initWithImage:MKSym(p.symbol, 22, UIImageSymbolWeightRegular)];
         iv.contentMode = UIViewContentModeCenter;
-        iv.frame = CGRectMake(0, 0, kSideW, 28);
+        iv.frame = CGRectMake(0, 2, kSideW, 28);
         iv.tag = 101; iv.userInteractionEnabled = NO;
         [b addSubview:iv];
-        UILabel *l = [[UILabel alloc] initWithFrame:CGRectMake(0, 30, kSideW, 20)];
+        // Label
+        UILabel *l = [[UILabel alloc] initWithFrame:CGRectMake(0, 32, kSideW, 16)];
         l.text = p.title.capitalizedString;
         l.textAlignment = NSTextAlignmentCenter;
-        l.font = [UIFont systemFontOfSize:14 weight:UIFontWeightMedium];
+        l.font = [UIFont systemFontOfSize:10 weight:UIFontWeightMedium];
         l.tag = 102; l.userInteractionEnabled = NO;
         [b addSubview:l];
+        // Left indicator bar (hidden initially)
+        UIView *ind = [[UIView alloc] initWithFrame:CGRectMake(0, 10, 3, btnH-20)];
+        ind.backgroundColor = MK_ACCENT();
+        ind.layer.cornerRadius = 1.5;
+        ind.tag = 103; ind.hidden = YES; ind.userInteractionEnabled = NO;
+        [b addSubview:ind];
         [b addTarget:self action:@selector(sideTapped:) forControlEvents:UIControlEventTouchUpInside];
         [self addSubview:b]; [btns addObject:b];
     }
@@ -682,11 +717,15 @@ static UIKitMenu *_shared;
         BOOL sel = (NSInteger)i == idx;
         p.scroll.hidden = !sel;
         UIButton *b = self.sideBtns[i];
-        UIColor *c = sel ? MK_ACCENT() : MK_TEXT();
+        UIColor *c = sel ? MK_ACCENT() : MK_DIM();
         ((UIImageView *)[b viewWithTag:101]).tintColor = c;
-        ((UILabel *)[b viewWithTag:102]).textColor = c;
+        ((UILabel    *)[b viewWithTag:102]).textColor  = c;
+        ((UIView     *)[b viewWithTag:103]).hidden = !sel;
+        b.backgroundColor = sel
+            ? [UIColor colorWithRed:0 green:199.0/255 blue:190.0/255 alpha:0.12]
+            : [UIColor clearColor];
         if (sel) {
-            self.headIcon.image = MKSym(p.symbol, 21, UIImageSymbolWeightRegular);
+            self.headIcon.image = MKSym(p.symbol, 21, UIImageSymbolWeightBold);
             self.headTitle.text = p.title;
         }
     }
