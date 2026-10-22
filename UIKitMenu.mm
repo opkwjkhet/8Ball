@@ -735,7 +735,7 @@ static UIKitMenu *_shared;
 - (void)buildAuto:(MenuPage *)p {
     [p setSegments:@[@"Play", @"Aim", @"Queue"]];
     // Play
-    [p add:[self boolRow:@"AutoPlay" ptr:&AutoPlay::bAutoPlaying asSwitch:YES] group:0];
+    [p add:[self boolRow:@"AutoPlay" ptr:&AutoPlay::bAutoPlaying asSwitch:NO] group:0];
     [p add:mkLabel(@"Play mode") group:0];
     [p add:MKSetGap([[DropdownRow alloc] initWithOptions:@[@"Safe Mode", @"Brutal Mode"]
                                                 indexPtr:&s_playMode width:kRowW], 9) group:0];
@@ -748,23 +748,23 @@ static UIKitMenu *_shared;
     }] group:0];
 
     // ── Fly Ball ───────────────────────────────────────────────────────────
-    [p add:[self boolRow:@"🪂  Fly Ball" ptr:&g_flyBall asSwitch:YES] group:0];
+    [p add:[self boolRow:@"🪂  Fly Ball" ptr:&g_flyBall asSwitch:NO] group:0];
     [p add:[[FloatRow alloc] initWithTitle:@"Fly Speed" ptr:&g_flySpeed
                                       min:1.0 max:30.0 fmt:@"%.1f" width:kRowW] group:0];
 
     // ── Magnet Ball ───────────────────────────────────────────────────────
-    [p add:[self boolRow:@"🧲  Magnet Ball" ptr:&g_magnetBall asSwitch:YES] group:0];
+    [p add:[self boolRow:@"🧲  Magnet Ball" ptr:&g_magnetBall asSwitch:NO] group:0];
     [p add:[[FloatRow alloc] initWithTitle:@"Magnet Radius" ptr:&g_magnetRadius
                                       min:5.0 max:150.0 fmt:@"%.0f" width:kRowW] group:0];
     [p add:[[FloatRow alloc] initWithTitle:@"Magnet Force"  ptr:&g_magnetForce
                                       min:1.0 max:50.0  fmt:@"%.1f" width:kRowW] group:0];
 
     // ── Silent Ball ───────────────────────────────────────────────────────
-    [p add:[self boolRow:@"🎯  Silent Ball" ptr:&g_silentBall asSwitch:YES] group:0];
+    [p add:[self boolRow:@"🎯  Silent Ball" ptr:&g_silentBall asSwitch:NO] group:0];
     // Aim
-    [p add:[self boolRow:@"Auto Aim (rotate cue)" ptr:&AutoPlay::bAutoAim asSwitch:YES] group:1];
+    [p add:[self boolRow:@"Auto Aim (rotate cue)" ptr:&AutoPlay::bAutoAim asSwitch:NO] group:1];
     // Queue
-    [p add:[self boolRow:@"AutoQueue (Rematch)" ptr:&AutoQueue::bAutoQueue asSwitch:YES] group:2];
+    [p add:[self boolRow:@"AutoQueue (Rematch)" ptr:&AutoQueue::bAutoQueue asSwitch:NO] group:2];
 }
 
 // ── Page 1: Visuals ────────────────────────────────────────────────────────
