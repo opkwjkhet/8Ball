@@ -122,9 +122,8 @@ static int s_playMode = 0;
 }
 - (instancetype)initWithTitle:(NSString *)t boolPtr:(bool *)ptr width:(CGFloat)w asSwitch:(BOOL)sw {
     // Parse "TITLE
-subtitle" format
-    NSArray *parts = [t componentsSeparatedByString:@"
-"];
+//subtitle" format
+    NSArray *parts = [t componentsSeparatedByString:@""];
     NSString *mainTitle = parts[0];
     NSString *subtitle  = parts.count > 1 ? parts[1] : nil;
 
