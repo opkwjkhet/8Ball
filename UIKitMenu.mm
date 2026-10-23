@@ -48,36 +48,42 @@ struct ESPCache_t;
 extern ESPCache_t g_cache;
 
 // ════════════════════════════════════════════════════════════════════════════
-// MARK: - Palette  (Chinese streamer UI — dark grey + teal accent)
+// MARK: - Palette  (Honor of Kings style — dark semi-transparent + white text)
 // ════════════════════════════════════════════════════════════════════════════
 static UIColor *MKRGB(int r, int g, int b) {
     return [UIColor colorWithRed:r/255.0 green:g/255.0 blue:b/255.0 alpha:1];
 }
-// Exact colours sampled from the two reference screenshots
-static UIColor *MK_BG()        { return MKRGB(28,  28,  30);  }  // #1C1C1E — panel bg
-static UIColor *MK_SIDEBAR()   { return MKRGB(44,  44,  46);  }  // #2C2C2E — sidebar
-static UIColor *MK_ROW()       { return MKRGB(58,  58,  60);  }  // #3A3A3C — rows
-static UIColor *MK_ACCENT()    { return MKRGB( 0, 199, 190);  }  // #00C7BE — teal
-static UIColor *MK_ACCENT_BG() { return [UIColor colorWithRed:0 green:199.0/255 blue:190.0/255 alpha:0.18]; }
-static UIColor *MK_TEXT()      { return MKRGB(240, 240, 245); }
-static UIColor *MK_DIM()       { return MKRGB(140, 140, 150); }
-static UIColor *MK_SEP()       { return [UIColor colorWithWhite:1 alpha:0.08]; }
-static UIColor *MK_TRACK_OFF() { return MKRGB( 72,  72,  74); }  // inactive toggle track
-static UIColor *MK_KNOB_OFF()  { return MKRGB(200, 200, 200); }
-static UIColor *MK_VAL_BG()    { return MKRGB( 0, 199, 190);  }  // slider value badge
+static UIColor *MK_BG()        { return [UIColor colorWithRed:0.10 green:0.10 blue:0.12 alpha:0.96]; } // near-black semi-opaque
+static UIColor *MK_SIDEBAR()   { return [UIColor colorWithRed:0.08 green:0.08 blue:0.10 alpha:1.00]; } // darker sidebar
+static UIColor *MK_ROW()       { return [UIColor colorWithRed:0.18 green:0.18 blue:0.21 alpha:1.00]; } // row bg
+static UIColor *MK_ROW_HALF()  { return [UIColor colorWithRed:0.18 green:0.18 blue:0.21 alpha:1.00]; } // half-width button row
+static UIColor *MK_ACCENT()    { return [UIColor colorWithRed:1.00 green:1.00 blue:1.00 alpha:1.00]; } // white checkmark
+static UIColor *MK_ACCENT_BG() { return [UIColor colorWithRed:1.00 green:1.00 blue:1.00 alpha:0.15]; } // selected bg
+static UIColor *MK_ICON_SEL()  { return [UIColor colorWithRed:1.00 green:1.00 blue:1.00 alpha:1.00]; } // selected icon white
+static UIColor *MK_TEXT()      { return [UIColor colorWithWhite:1.00 alpha:1.00]; } // white
+static UIColor *MK_SUBTEXT()   { return [UIColor colorWithWhite:0.55 alpha:1.00]; } // grey subtitle
+static UIColor *MK_DIM()       { return [UIColor colorWithWhite:0.40 alpha:1.00]; }
+static UIColor *MK_SEP()       { return [UIColor colorWithWhite:1.00 alpha:0.08]; }
+static UIColor *MK_TRACK_OFF() { return [UIColor colorWithWhite:0.30 alpha:1.00]; }
+static UIColor *MK_KNOB_OFF()  { return [UIColor colorWithWhite:0.70 alpha:1.00]; }
+static UIColor *MK_VAL_BG()    { return [UIColor colorWithRed:0.18 green:0.18 blue:0.21 alpha:1.00]; }
+static UIColor *MK_CHEV()      { return [UIColor colorWithWhite:0.55 alpha:1.00]; } // dropdown chevron grey
+static UIColor *MK_HEAD_TITLE_W()  { return [UIColor colorWithWhite:1.00 alpha:1.00]; } // white header text
+static UIColor *MK_HEAD_TITLE_C()  { return [UIColor colorWithRed:0.50 green:0.80 blue:1.00 alpha:1.00]; } // cyan colored word
 
-// ── Metrics tuned to match screenshot proportions ──
-static const CGFloat kW      = 410;   // total panel width
-static const CGFloat kH      = 380;   // total panel height
-static const CGFloat kSideW  = 80;    // sidebar width  (icon-only column)
-static const CGFloat kHeadH  = 54;    // content header bar height
-static const CGFloat kRH     = 54;    // row height
+// ── Metrics — Honor of Kings panel size (portrait phone) ──
+static const CGFloat kW      = 560;   // total panel width
+static const CGFloat kH      = 460;   // total panel height
+static const CGFloat kSideW  = 90;    // sidebar width
+static const CGFloat kHeadH  = 60;    // header bar height
+static const CGFloat kRH     = 48;    // row height
 static const CGFloat kSegH   = 44;    // segmented control height
-static const CGFloat kPadL   = 12;    // left padding of rows inside content
-static const CGFloat kRowW   = kW - kSideW - kPadL * 2; // row width
-static const CGFloat kGap    = 10;    // gap between rows
-static const CGFloat kR      = 20;    // panel corner radius
-static const CGFloat kRR     = 14;    // row corner radius
+static const CGFloat kPadL   = 14;    // left padding
+static const CGFloat kRowW   = kW - kSideW - kPadL * 2;  // row width
+static const CGFloat kHalfW  = (kRowW - 8) / 2;          // half-width for 2-col buttons
+static const CGFloat kGap    = 8;     // gap between rows
+static const CGFloat kR      = 16;    // panel corner radius
+static const CGFloat kRR     = 10;    // row corner radius
 
 static char kGapKey;
 
@@ -107,42 +113,58 @@ static int s_playMode = 0;
 - (void)refresh;
 @end
 @implementation BoolRow {
-    bool    *_ptr;
-    BOOL     _switch;
-    UIView  *_box;      // checkbox / switch track
-    UIView  *_knob;     // switch knob
+    bool        *_ptr;
+    BOOL         _switch;
+    UIView      *_box;
+    UIView      *_knob;
     UIImageView *_check;
-    CGFloat  _w;
+    CGFloat      _w;
 }
 - (instancetype)initWithTitle:(NSString *)t boolPtr:(bool *)ptr width:(CGFloat)w asSwitch:(BOOL)sw {
-    self = [super initWithFrame:CGRectMake(0, 0, w, kRH)];
+    // Parse "TITLE
+subtitle" format
+    NSArray *parts = [t componentsSeparatedByString:@"
+"];
+    NSString *mainTitle = parts[0];
+    NSString *subtitle  = parts.count > 1 ? parts[1] : nil;
+
+    CGFloat rowH = subtitle ? kRH + 14 : kRH;
+    self = [super initWithFrame:CGRectMake(0, 0, w, rowH)];
     if (!self) return nil;
     _ptr = ptr; _switch = sw; _w = w;
     self.backgroundColor    = MK_ROW();
     self.layer.cornerRadius = kRR;
 
-    UILabel *lbl = [[UILabel alloc] initWithFrame:CGRectMake(16, 0, w-16-80, kRH)];
-    lbl.text = t; lbl.textColor = MK_TEXT();
-    lbl.font = [UIFont systemFontOfSize:15 weight:UIFontWeightMedium];
+    // Checkmark circle — LEFT side (HoK style)
+    CGFloat cs = 22;
+    _box = [[UIView alloc] initWithFrame:CGRectMake(14, (rowH-cs)/2, cs, cs)];
+    _box.layer.cornerRadius = cs/2;
+    _box.layer.borderWidth  = 1.5;
+    _box.layer.masksToBounds = YES;
+    _box.userInteractionEnabled = NO;
+    _check = [[UIImageView alloc] initWithImage:MKSym(@"checkmark", 10, UIImageSymbolWeightHeavy)];
+    _check.tintColor = [UIColor whiteColor];
+    _check.contentMode = UIViewContentModeCenter;
+    _check.frame = _box.bounds;
+    [_box addSubview:_check];
+    [self addSubview:_box];
+
+    // Main label (bold uppercase — HoK style)
+    CGFloat lblX = 14 + cs + 10;
+    UILabel *lbl = [[UILabel alloc] initWithFrame:CGRectMake(lblX, subtitle ? 10 : 0, w-lblX-16, subtitle ? 20 : rowH)];
+    lbl.text = mainTitle.uppercaseString;
+    lbl.textColor = MK_TEXT();
+    lbl.font = [UIFont systemFontOfSize:13 weight:UIFontWeightSemibold];
     [self addSubview:lbl];
 
-    if (sw) {
-        _box = [[UIView alloc] initWithFrame:CGRectMake(w-16-44, (kRH-24)/2, 44, 24)];
-        _box.layer.cornerRadius = 12;
-        _knob = [[UIView alloc] initWithFrame:CGRectMake(3, 3, 18, 18)];
-        _knob.layer.cornerRadius = 9;
-        [_box addSubview:_knob];
-    } else {
-        _box = [[UIView alloc] initWithFrame:CGRectMake(w-18-23, (kRH-23)/2, 23, 23)];
-        _box.layer.cornerRadius = 6;
-        _check = [[UIImageView alloc] initWithImage:MKSym(@"checkmark", 12, UIImageSymbolWeightHeavy)];
-        _check.tintColor = [UIColor whiteColor];
-        _check.contentMode = UIViewContentModeCenter;
-        _check.frame = _box.bounds;
-        [_box addSubview:_check];
+    // Subtitle (small grey — HoK style)
+    if (subtitle) {
+        UILabel *sub = [[UILabel alloc] initWithFrame:CGRectMake(lblX, 30, w-lblX-16, 14)];
+        sub.text = subtitle.uppercaseString;
+        sub.textColor = MK_SUBTEXT();
+        sub.font = [UIFont systemFontOfSize:10 weight:UIFontWeightRegular];
+        [self addSubview:sub];
     }
-    _box.userInteractionEnabled = NO;
-    [self addSubview:_box];
 
     [self addGestureRecognizer:[[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(tapped)]];
     [self refresh];
@@ -151,17 +173,12 @@ static int s_playMode = 0;
 - (void)tapped { if (_ptr) { *_ptr = !(*_ptr); [self refresh]; ESP_SaveSettings(); } }
 - (void)refresh {
     BOOL on = _ptr ? *_ptr : NO;
-    if (_switch) {
-        _box.backgroundColor  = on ? MK_ACCENT() : MK_TRACK_OFF();
-        _knob.backgroundColor = on ? [UIColor whiteColor] : MK_KNOB_OFF();
-        CGRect kf = _knob.frame; kf.origin.x = on ? 44-18-3 : 3;
-        if (!CGRectEqualToRect(kf, _knob.frame)) {
-            [UIView animateWithDuration:0.15 animations:^{ self->_knob.frame = kf; }];
-        }
-    } else {
-        _box.backgroundColor = on ? MK_ACCENT() : MK_BG();
-        _check.hidden = !on;
-    }
+    _box.backgroundColor = on ? [UIColor whiteColor] : [UIColor clearColor];
+    _box.layer.borderColor = on
+        ? [UIColor whiteColor].CGColor
+        : [UIColor colorWithWhite:0.5 alpha:1].CGColor;
+    _check.hidden = !on;
+    _check.tintColor = on ? MK_BG() : [UIColor clearColor];
 }
 @end
 
@@ -639,9 +656,9 @@ static UIKitMenu *_shared;
     _headIcon.contentMode = UIViewContentModeCenter;
     [self addSubview:_headIcon];
 
-    _headTitle = [[UILabel alloc] initWithFrame:CGRectMake(kSideW+kPadL+30, 0, 220, kHeadH)];
-    _headTitle.textColor = MK_ACCENT();
-    _headTitle.font = [UIFont systemFontOfSize:17 weight:UIFontWeightBold];
+    _headTitle = [[UILabel alloc] initWithFrame:CGRectMake(kSideW+kPadL+30, 0, kW-kSideW-80, kHeadH)];
+    _headTitle.textColor = MK_TEXT();
+    _headTitle.font = [UIFont systemFontOfSize:18 weight:UIFontWeightBold];
     [self addSubview:_headTitle];
 
     UIButton *close = [UIButton buttonWithType:UIButtonTypeCustom];
@@ -661,15 +678,15 @@ static UIKitMenu *_shared;
 
     // Pages
     CGRect sf = CGRectMake(kSideW+1, kHeadH, kW-kSideW-1, kH-kHeadH-14);
-    MenuPage *pAuto = [[MenuPage alloc] initWithTitle:@"AUTO"     symbol:@"scope"        frame:sf];
-    MenuPage *pVis  = [[MenuPage alloc] initWithTitle:@"VISUALS"  symbol:@"eye"          frame:sf];
-    MenuPage *pMisc = [[MenuPage alloc] initWithTitle:@"MISC"     symbol:@"shippingbox"  frame:sf];
-    MenuPage *pSet  = [[MenuPage alloc] initWithTitle:@"SETTINGS" symbol:@"gearshape"    frame:sf];
-    MenuPage *pAcc  = [[MenuPage alloc] initWithTitle:@"ACCOUNT"  symbol:@"person"       frame:sf];
-    self.pages = @[pAuto, pVis, pMisc, pSet, pAcc];
+    MenuPage *pHome = [[MenuPage alloc] initWithTitle:@"HOME"          symbol:@"house.fill"   frame:sf];
+    MenuPage *pEsp  = [[MenuPage alloc] initWithTitle:@"ENEMY ESP"     symbol:@"eye.fill"     frame:sf];
+    MenuPage *pAim  = [[MenuPage alloc] initWithTitle:@"SKILL AIMBOT"  symbol:@"scope"        frame:sf];
+    MenuPage *pItem = [[MenuPage alloc] initWithTitle:@"AUTO SPELLS"   symbol:@"square.stack.3d.up.fill" frame:sf];
+    MenuPage *pUtil = [[MenuPage alloc] initWithTitle:@"TACTICAL UTILITY" symbol:@"chart.pie.fill" frame:sf];
+    self.pages = @[pHome, pEsp, pAim, pItem, pUtil];
     for (MenuPage *p in self.pages) { p.scroll.hidden = YES; [self addSubview:p.scroll]; }
-    [self buildAuto:pAuto]; [self buildVisuals:pVis]; [self buildMisc:pMisc];
-    [self buildSettings:pSet]; [self buildAccount:pAcc];
+    [self buildHome:pHome]; [self buildESP:pEsp]; [self buildAimbot:pAim];
+    [self buildItems:pItem]; [self buildUtility:pUtil];
 
     // Sidebar buttons — evenly spaced, icon + small label, teal indicator bar when selected
     NSMutableArray *btns = [NSMutableArray array];
@@ -717,104 +734,110 @@ static UIKitMenu *_shared;
         BOOL sel = (NSInteger)i == idx;
         p.scroll.hidden = !sel;
         UIButton *b = self.sideBtns[i];
-        UIColor *c = sel ? MK_ACCENT() : MK_DIM();
+        UIColor *c = sel ? MK_ICON_SEL() : MK_DIM();
         ((UIImageView *)[b viewWithTag:101]).tintColor = c;
         ((UILabel    *)[b viewWithTag:102]).textColor  = c;
         ((UIView     *)[b viewWithTag:103]).hidden = !sel;
         b.backgroundColor = sel
-            ? [UIColor colorWithRed:0 green:199.0/255 blue:190.0/255 alpha:0.12]
+            ? [UIColor colorWithWhite:1 alpha:0.10]
             : [UIColor clearColor];
         if (sel) {
             self.headIcon.image = MKSym(p.symbol, 21, UIImageSymbolWeightBold);
-            self.headTitle.text = p.title;
+            // HoK style: "PREFIX  TITLE" — prefix dim, title bold white
+            // Use attributed string: first word dim, last word white bold
+            NSArray *words = [p.title componentsSeparatedByString:@" "];
+            if (words.count >= 2) {
+                NSMutableAttributedString *as = [[NSMutableAttributedString alloc] init];
+                NSString *prefix = [[words subarrayWithRange:NSMakeRange(0, words.count-1)] componentsJoinedByString:@" "];
+                NSString *name   = words.lastObject;
+                [as appendAttributedString:[[NSAttributedString alloc] initWithString:[prefix stringByAppendingString:@"  "]
+                    attributes:@{NSFontAttributeName:[UIFont systemFontOfSize:18 weight:UIFontWeightLight],
+                                 NSForegroundColorAttributeName:MK_SUBTEXT()}]];
+                [as appendAttributedString:[[NSAttributedString alloc] initWithString:name
+                    attributes:@{NSFontAttributeName:[UIFont systemFontOfSize:18 weight:UIFontWeightBold],
+                                 NSForegroundColorAttributeName:MK_HEAD_TITLE_C()}]];
+                self.headTitle.attributedText = as;
+            } else {
+                self.headTitle.text = p.title;
+            }
         }
     }
 }
 
-// ── Page 0: Auto (Play | Aim | Queue) ──────────────────────────────────────
-- (void)buildAuto:(MenuPage *)p {
+// ── Page 0: Home ───────────────────────────────────────────────────────────
+- (void)buildHome:(MenuPage *)p {
+    // Two-column feature cards (Image 1)
+    [p add:mkLabel(@"DRAW MINIMAP\nHERO & JUNGLE ICONS") group:0];
+    [p add:mkLabel(@"SKIN CHANGER\nALL HEROES & VFX") group:0];
+    [p add:mkLabel(@"Camera Distance") group:0];
+    [p add:MKSetGap([[FloatRow alloc] initWithTitle:@"Camera Distance"
+        ptr:&g_tableScaleFactor min:0.5 max:2.0 fmt:@"%.2f×" width:kRowW], 6) group:0];
+    [p add:[[ActionRow alloc] initWithTitle:@"RESET DEFAULT" symbol:@"arrow.counterclockwise"
+        width:kRowW action:^{ g_tableOffsetX=0; g_tableOffsetY=0; g_tableScaleFactor=1.0f; ESP_SaveSettings(); }] group:0];
+}
+
+// ── Page 1: ESP ────────────────────────────────────────────────────────────
+- (void)buildESP:(MenuPage *)p {
+    [p add:[self boolRow:@"ENABLE ESP\nSHOW PREDICTION LINES"    ptr:&g_espEnabled         asSwitch:NO] group:0];
+    [p add:[self boolRow:@"PREDICTION LINES\nBALL TRAJECTORY"   ptr:&g_drawPredictionLine asSwitch:NO] group:0];
+    [p add:[self boolRow:@"DRAW POCKETS\nHIGHLIGHT POCKETS"     ptr:&g_drawPockets        asSwitch:NO] group:0];
+    [p add:[self boolRow:@"POCKET SHOT STATE\nSHOW SHOT STATUS"  ptr:&g_drawPocketsShotState asSwitch:NO] group:0];
+    [p add:mkLabel(@"LINE WIDTH") group:0];
+    [p add:MKSetGap([[FloatRow alloc] initWithTitle:@"Line Width" ptr:&g_lineWidth min:0.5 max:5.0 fmt:@"%.1f" width:kRowW], 6) group:0];
+}
+
+// ── Page 2: Aimbot (Play | Aim | Queue) ────────────────────────────────────
+- (void)buildAimbot:(MenuPage *)p {
     [p setSegments:@[@"Play", @"Aim", @"Queue"]];
     // Play
-    [p add:[self boolRow:@"AutoPlay" ptr:&AutoPlay::bAutoPlaying asSwitch:NO] group:0];
-    [p add:mkLabel(@"Play mode") group:0];
+    [p add:[self boolRow:@"AUTOPLAY\nAUTO SHOT MODE"     ptr:&AutoPlay::bAutoPlaying asSwitch:NO] group:0];
+    [p add:mkLabel(@"PLAY MODE") group:0];
     [p add:MKSetGap([[DropdownRow alloc] initWithOptions:@[@"Safe Mode", @"Brutal Mode"]
-                                                indexPtr:&s_playMode width:kRowW], 9) group:0];
-    // ── Insta Pocket ──────────────────────────────────────────────────────
-    [p add:[[ActionRow alloc] initWithTitle:@"💥  Insta Pocket (all balls)"
-                                    symbol:@"arrow.down.circle.fill"
-                                     width:kRowW
-                                    action:^{
-        g_instaPocket = true;
-    }] group:0];
-
-    // ── Fly Ball ───────────────────────────────────────────────────────────
-    [p add:[self boolRow:@"🪂  Fly Ball" ptr:&g_flyBall asSwitch:NO] group:0];
-    [p add:[[FloatRow alloc] initWithTitle:@"Fly Speed" ptr:&g_flySpeed
-                                      min:1.0 max:30.0 fmt:@"%.1f" width:kRowW] group:0];
-
-    // ── Magnet Ball ───────────────────────────────────────────────────────
-    [p add:[self boolRow:@"🧲  Magnet Ball" ptr:&g_magnetBall asSwitch:NO] group:0];
-    [p add:[[FloatRow alloc] initWithTitle:@"Magnet Radius" ptr:&g_magnetRadius
-                                      min:5.0 max:150.0 fmt:@"%.0f" width:kRowW] group:0];
-    [p add:[[FloatRow alloc] initWithTitle:@"Magnet Force"  ptr:&g_magnetForce
-                                      min:1.0 max:50.0  fmt:@"%.1f" width:kRowW] group:0];
-
-    // ── Silent Ball ───────────────────────────────────────────────────────
-    [p add:[self boolRow:@"🎯  Silent Ball" ptr:&g_silentBall asSwitch:NO] group:0];
+                                                indexPtr:&s_playMode width:kRowW], 6) group:0];
+    [p add:[[ActionRow alloc] initWithTitle:@"💥  INSTA POCKET  (ALL BALLS)" symbol:@"arrow.down.circle.fill"
+        width:kRowW action:^{ g_instaPocket = true; }] group:0];
+    [p add:[self boolRow:@"🪂  FLY BALL\nBALLS FLOAT UP"         ptr:&g_flyBall    asSwitch:NO] group:0];
+    [p add:MKSetGap([[FloatRow alloc] initWithTitle:@"Fly Speed" ptr:&g_flySpeed min:1.0 max:30.0 fmt:@"%.1f" width:kRowW], 4) group:0];
+    [p add:[self boolRow:@"🧲  MAGNET BALL\nPULL TO CUE BALL"    ptr:&g_magnetBall asSwitch:NO] group:0];
+    [p add:MKSetGap([[FloatRow alloc] initWithTitle:@"Magnet Force" ptr:&g_magnetForce min:1.0 max:50.0 fmt:@"%.1f" width:kRowW], 4) group:0];
+    [p add:[self boolRow:@"🎯  SILENT BALL\nHIT NEAREST BALL"    ptr:&g_silentBall asSwitch:NO] group:0];
     // Aim
-    [p add:[self boolRow:@"Auto Aim (rotate cue)" ptr:&AutoPlay::bAutoAim asSwitch:NO] group:1];
+    [p add:[self boolRow:@"AUTO AIM\nROTATE CUE TO TARGET"  ptr:&AutoPlay::bAutoAim asSwitch:NO] group:1];
     // Queue
-    [p add:[self boolRow:@"AutoQueue (Rematch)" ptr:&AutoQueue::bAutoQueue asSwitch:NO] group:2];
+    [p add:[self boolRow:@"AUTO QUEUE\nAUTO REMATCH"         ptr:&AutoQueue::bAutoQueue asSwitch:NO] group:2];
 }
 
-// ── Page 1: Visuals ────────────────────────────────────────────────────────
-- (void)buildVisuals:(MenuPage *)p {
-    [p add:[self boolRow:@"Enable ESP"        ptr:&g_espEnabled           asSwitch:NO] group:0];
-    [p add:[self boolRow:@"Prediction Lines"  ptr:&g_drawPredictionLine   asSwitch:NO] group:0];
-    [p add:[self boolRow:@"Draw Pockets"      ptr:&g_drawPockets          asSwitch:NO] group:0];
-    [p add:[self boolRow:@"Pocket Shot State" ptr:&g_drawPocketsShotState asSwitch:NO] group:0];
-    [p add:mkLabel(@"Line") group:0];
-    [p add:MKSetGap([[FloatRow alloc] initWithTitle:@"Line Width" ptr:&g_lineWidth min:0.5 max:5.0 fmt:@"%.1f" width:kRowW], 9) group:0];
+// ── Page 3: Items / Spells (Auto Smite) ────────────────────────────────────
+- (void)buildItems:(MenuPage *)p {
+    [p add:mkLabel(@"TABLE CALIBRATION") group:0];
+    [p add:[[FloatRow alloc] initWithTitle:@"Offset X"     ptr:&g_tableOffsetX     min:-50  max:50  fmt:@"%.1f" width:kRowW] group:0];
+    [p add:[[FloatRow alloc] initWithTitle:@"Offset Y"     ptr:&g_tableOffsetY     min:-50  max:50  fmt:@"%.1f" width:kRowW] group:0];
+    [p add:[[FloatRow alloc] initWithTitle:@"Scale Factor" ptr:&g_tableScaleFactor min:0.90 max:1.10 fmt:@"%.3f" width:kRowW] group:0];
 }
 
-// ── Page 2: Misc (Protection | Debug) ──────────────────────────────────────
-- (void)buildMisc:(MenuPage *)p {
-    [p addTop:mkNote(@"Some options in this section may not be entirely safe. Use with caution and at your own risk.",
-                     @[@"not be entirely safe", @"caution", @"your own risk"])];
+// ── Page 4: Utility (Protection | Debug) ───────────────────────────────────
+- (void)buildUtility:(MenuPage *)p {
     [p setSegments:@[@"Protection", @"Debug"]];
-    [p add:[self boolRow:@"I'm Not Hacker (stream)" ptr:&g_noScreenShot asSwitch:NO] group:0];
+    [p add:[self boolRow:@"STREAM PROTECTION\nHIDE UI FROM RECORDINGS" ptr:&g_noScreenShot asSwitch:NO] group:0];
     _irFPS = [[InfoRow alloc] initWithTitle:@"FPS" width:kRowW];
     [p add:_irFPS group:1];
-    [p add:[[ActionRow alloc] initWithTitle:@"Save Log to Documents" symbol:@"square.and.arrow.down" width:kRowW
+    _irInGame = [[InfoRow alloc] initWithTitle:@"In Game"      width:kRowW]; [p add:_irInGame group:1];
+    _irTurn   = [[InfoRow alloc] initWithTitle:@"Player Turn"  width:kRowW]; [p add:_irTurn   group:1];
+    _irRule   = [[InfoRow alloc] initWithTitle:@"Rule"         width:kRowW]; [p add:_irRule   group:1];
+    _irBalls  = [[InfoRow alloc] initWithTitle:@"Balls"        width:kRowW]; [p add:_irBalls  group:1];
+    [p add:[[ActionRow alloc] initWithTitle:@"SAVE DEBUG LOG" symbol:@"square.and.arrow.down" width:kRowW
         action:^{
             @try {
                 NSMutableString *log = [NSMutableString string];
-                [log appendFormat:@"=== 8BP Debug Log ===\n"];
+                [log appendFormat:@"=== 8BP Log ===\n"];
                 [log appendFormat:@"Date: %@\n", [NSDate date]];
-                [log appendFormat:@"InGame: %d  PlayerTurn: %d\n", isInGame(), isPlayerTurn()];
-                [log appendFormat:@"Rule: %s\n", isNineBallRuntime() ? "9-Ball" : "8-Ball"];
-                [log appendFormat:@"Balls: %d\n", getTableBallCount(GM_Table())];
-                NSString *path = [NSSearchPathForDirectoriesInDomains(
-                    NSDocumentDirectory, NSUserDomainMask, YES).firstObject
+                [log appendFormat:@"InGame: %d  Turn: %d\n", isInGame(), isPlayerTurn()];
+                [log appendFormat:@"Rule: %s  Balls: %d\n", isNineBallRuntime()?"9B":"8B", getTableBallCount(GM_Table())];
+                NSString *path = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory,NSUserDomainMask,YES).firstObject
                     stringByAppendingPathComponent:@"8bp_debug.txt"];
                 [log writeToFile:path atomically:YES encoding:NSUTF8StringEncoding error:nil];
             } @catch (...) {}
         }] group:1];
-}
-
-// ── Page 3: Settings (table calibration) ───────────────────────────────────
-- (void)buildSettings:(MenuPage *)p {
-    [p add:[[FloatRow alloc] initWithTitle:@"Offset X"      ptr:&g_tableOffsetX     min:-50  max:50  fmt:@"%.1f" width:kRowW] group:0];
-    [p add:[[FloatRow alloc] initWithTitle:@"Offset Y"      ptr:&g_tableOffsetY     min:-50  max:50  fmt:@"%.1f" width:kRowW] group:0];
-    [p add:[[FloatRow alloc] initWithTitle:@"Scale Factor"  ptr:&g_tableScaleFactor min:0.9 max:1.1 fmt:@"%.3f" width:kRowW] group:0];
-}
-
-// ── Page 4: Account (live game status) ─────────────────────────────────────
-- (void)buildAccount:(MenuPage *)p {
-    _irInGame = [[InfoRow alloc] initWithTitle:@"In Game" width:kRowW];        [p add:_irInGame group:0];
-    _irTurn   = [[InfoRow alloc] initWithTitle:@"Player Turn" width:kRowW];    [p add:_irTurn   group:0];
-    _irRule   = [[InfoRow alloc] initWithTitle:@"Rule" width:kRowW];           [p add:_irRule   group:0];
-    _irBalls  = [[InfoRow alloc] initWithTitle:@"Balls on table" width:kRowW]; [p add:_irBalls  group:0];
 }
 
 // ── Show / Hide / Toggle ───────────────────────────────────────────────────
